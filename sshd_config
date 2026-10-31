@@ -19,3 +19,7 @@ PermitUserEnvironment no
 # /tmp is a world-writable tmpfs parent, which StrictModes rejects; the key dir is 0700 and owned by sbx.
 StrictModes no
 LogLevel INFO
+PrintMotd no
+PermitUserRC no
+MaxAuthTries 3
+LoginGraceTime 20
