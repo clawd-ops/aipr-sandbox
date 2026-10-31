@@ -1,0 +1,27 @@
+# Runs as the unprivileged sbx user. StrictModes is off because the key file lives under sticky /tmp, which the strict parent-directory check rejects.
+Port 2222
+ListenAddress 0.0.0.0
+Protocol 2
+PidFile /tmp/sshd/sshd.pid
+HostKey /tmp/sshd/ssh_host_ed25519_key
+AuthorizedKeysFile /tmp/sshd/authorized_keys
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+PermitEmptyPasswords no
+UsePAM no
+AllowUsers sbx
+AllowTcpForwarding no
+AllowAgentForwarding no
+X11Forwarding no
+PermitTunnel no
+GatewayPorts no
+PermitUserEnvironment no
+StrictModes no
+LogLevel INFO
+PrintMotd no
+PermitUserRC no
+AcceptEnv
+MaxAuthTries 3
+LoginGraceTime 20
