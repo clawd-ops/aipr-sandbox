@@ -14,18 +14,25 @@ $S sbx@127.0.0.1 'git --version && python3 --version && sort --version | head -1
 UID_R=$($S sbx@127.0.0.1 id -u)
 [ "$UID_R" = 10001 ] || { echo "FAIL: uid $UID_R" >&2; exit 1; }
 echo "non-root ok (uid $UID_R)"
-# password auth and forwarding must be refused (explicit ifs: "! cmd" does not trip set -e)
-if ssh -p 2222 -o PubkeyAuthentication=no -o PreferredAuthentications=password -o BatchMode=yes \
-   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null sbx@127.0.0.1 true 2>/dev/null; then
-  echo "FAIL: password auth accepted" >&2; exit 1
-fi
-echo "password auth refused ok"
-if timeout 15 $S -R 9999:127.0.0.1:2222 -N -o ExitOnForwardFailure=yes sbx@127.0.0.1 2>/dev/null; then
-  echo "FAIL: remote forwarding accepted" >&2; exit 1
-fi
-echo "forwarding refused ok"
-# read-only root: writes outside /tmp and /work must fail
-if $S sbx@127.0.0.1 'touch /etc/x' 2>/dev/null; then echo "FAIL: root fs writable" >&2; exit 1; fi
+# Forwarding probes. ExitOnForwardFailure plus a bounded timeout: a live session (timeout, rc 124) or
+# rc 0 means forwarding WORKED and is a FAIL. Only a prompt ssh failure carrying an explicit
+# refusal message counts as a pass. (Explicit ifs: "! cmd" does not trip set -e.)
+refused() { # name, then the probe command
+  n=$1; shift
+  rc=0; "$@" >"$T/probe.out" 2>"$T/probe.err" </dev/null || rc=$?
+  if [ "$rc" = 0 ] || [ "$rc" = 124 ]; then echo "FAIL: $n forwarding worked (rc $rc)" >&2; exit 1; fi
+  grep -Eqi 'forwarding failed|administratively prohibited|forwarding disabled|open failed' "$T/probe.err" \
+    || { echo "FAIL: $n exited rc $rc without an explicit refusal" >&2; cat "$T/probe.err" >&2; exit 1; }
+  echo "$n forwarding refused ok (rc $rc)"
+}
+FO="-o ExitOnForwardFailure=yes -o LogLevel=ERROR"
+refused "remote tcp" timeout 15 $S $FO -R 9999:127.0.0.1:2222 -N sbx@127.0.0.1
+refused "remote unix" timeout 15 $S $FO -R /tmp/probe.sock:127.0.0.1:2222 -N sbx@127.0.0.1
+refused "stdio" timeout 15 $S $FO -W 127.0.0.1:2222 sbx@127.0.0.1
+# read-only root: Docker setting must be on, and even root inside the container cannot write /etc
+[ "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' aipr-smoke)" = true ] \
+  || { echo "FAIL: container not started read-only" >&2; exit 1; }
+if docker exec -u 0 aipr-smoke touch /etc/x 2>/dev/null; then echo "FAIL: root fs writable" >&2; exit 1; fi
 echo "read-only root ok"
 # writable /tmp and /work
 $S sbx@127.0.0.1 'touch /tmp/x /work/x'
@@ -37,14 +44,9 @@ if ssh -p 2222 -i "$T/bad" -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostK
   echo "FAIL: wrong key accepted" >&2; exit 1
 fi
 echo "wrong key refused ok"
-# stdio forwarding refused
-if $S -W 127.0.0.1:2222 sbx@127.0.0.1 </dev/null 2>/dev/null; then
-  echo "FAIL: stdio forwarding accepted" >&2; exit 1
-fi
-echo "stdio forwarding refused ok"
-# effective sshd config
+# effective sshd config (also the password-auth policy check: a client probe cannot prove it)
 docker exec aipr-smoke /usr/sbin/sshd -T -f /etc/ssh/sshd_config.aipr 2>/dev/null > "$T/sshd-T"
-for kv in 'allowtcpforwarding no' 'passwordauthentication no' 'maxauthtries 3' 'logingracetime 20'; do
+for kv in 'disableforwarding yes' 'allowtcpforwarding no' 'allowstreamlocalforwarding no' 'passwordauthentication no' 'kbdinteractiveauthentication no' 'permitrootlogin no' 'pubkeyauthentication yes' 'maxauthtries 3' 'logingracetime 20'; do
   grep -qx "$kv" "$T/sshd-T" || { echo "FAIL: sshd -T lacks '$kv'" >&2; exit 1; }
 done
 echo "effective sshd config ok"
