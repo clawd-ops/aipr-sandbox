@@ -10,9 +10,9 @@ KbdInteractiveAuthentication no
 PermitRootLogin no
 PermitEmptyPasswords no
 AllowUsers sbx
-DisableForwarding yes
-AllowTcpForwarding no
-AllowStreamLocalForwarding no
+DisableForwarding no
+AllowTcpForwarding yes
+AllowStreamLocalForwarding yes
 AllowAgentForwarding no
 X11Forwarding no
 PermitTunnel no
