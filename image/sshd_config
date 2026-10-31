@@ -10,7 +10,6 @@ PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin no
 PermitEmptyPasswords no
-UsePAM no
 AllowUsers sbx
 AllowTcpForwarding no
 AllowAgentForwarding no
@@ -22,6 +21,5 @@ StrictModes no
 LogLevel INFO
 PrintMotd no
 PermitUserRC no
-AcceptEnv
 MaxAuthTries 3
 LoginGraceTime 20
