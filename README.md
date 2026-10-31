@@ -17,6 +17,6 @@ Image: `ghcr.io/clawd-ops/aipr-sandbox`, tagged `v<VERSION>-<12-char commit sha>
 - `image/` Dockerfile, `sshd_config`, `entrypoint.sh`
 - `tests/smoke.sh IMAGE` ssh, git and patch round-trip checks, run in CI before publishing
 - `VERSION` bumped by hand for a new release line
-- `.github/workflows/image.yml` builds and smoke-tests on every PR and push; publishes to GHCR on push to `main` or manual dispatch with `publish`
+- `.github/workflows/image.yml` builds and smoke-tests on every PR and push; publishes to GHCR on push to `main` or to a `publish/**` branch (push the reviewed commit there to publish it before merge)
 
 No license is declared yet.
