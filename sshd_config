@@ -9,7 +9,6 @@ PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin no
 PermitEmptyPasswords no
-UsePAM no
 AllowUsers sbx
 AllowTcpForwarding no
 AllowAgentForwarding no
@@ -17,5 +16,6 @@ X11Forwarding no
 PermitTunnel no
 GatewayPorts no
 PermitUserEnvironment no
-StrictModes yes
+# /tmp is a world-writable tmpfs parent, which StrictModes rejects; the key dir is 0700 and owned by sbx.
+StrictModes no
 LogLevel INFO
