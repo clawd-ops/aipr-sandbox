@@ -1,0 +1,73 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ghcr.io/clawd-ops/aipr-sandbox
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build (linux/amd64, no push)
+        run: docker build -t aipr-sandbox:test .
+      - name: Smoke test
+        run: sh tests/smoke.sh aipr-sandbox:test
+
+  publish:
+    # Only on main or manual dispatch; never on pull_request. Rebuilds and re-tests, then pushes.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Compute tags
+        id: tags
+        run: |
+          alpine=$(sed -n 's/^FROM alpine:\([0-9.]*\)@.*/\1/p' Dockerfile)
+          short=$(printf '%s' "$GITHUB_SHA" | cut -c1-7)
+          echo "alpine=$alpine" >> "$GITHUB_OUTPUT"
+          echo "short=$short" >> "$GITHUB_OUTPUT"
+      - name: Build
+        run: |
+          docker build -t "$IMAGE:${{ steps.tags.outputs.alpine }}-${{ steps.tags.outputs.short }}" \
+            -t "$IMAGE:sha-${{ steps.tags.outputs.short }}" .
+      - name: Smoke test
+        run: sh tests/smoke.sh "$IMAGE:sha-${{ steps.tags.outputs.short }}"
+      - name: Log in to ghcr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Push and report digest
+        run: |
+          docker push "$IMAGE:${{ steps.tags.outputs.alpine }}-${{ steps.tags.outputs.short }}"
+          docker push "$IMAGE:sha-${{ steps.tags.outputs.short }}"
+          digest=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:sha-${{ steps.tags.outputs.short }}")
+          {
+            echo "### Published"
+            echo ""
+            echo "- \`$IMAGE:${{ steps.tags.outputs.alpine }}-${{ steps.tags.outputs.short }}\`"
+            echo "- \`$IMAGE:sha-${{ steps.tags.outputs.short }}\`"
+            echo "- digest: \`$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,27 @@
+# Runs as the unprivileged sbx user. Runtime paths come from entrypoint.sh (-o / -f).
+Port 2222
+ListenAddress 0.0.0.0
+PidFile /tmp/sshd/sshd.pid
+HostKey /tmp/sshd/ssh_host_ed25519_key
+AuthorizedKeysFile /tmp/sshd/authorized_keys
+PubkeyAuthentication yes
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+PermitEmptyPasswords no
+AllowUsers sbx
+DisableForwarding yes
+AllowTcpForwarding no
+AllowStreamLocalForwarding no
+AllowAgentForwarding no
+X11Forwarding no
+PermitTunnel no
+GatewayPorts no
+PermitUserEnvironment no
+# /tmp is a world-writable tmpfs parent, which StrictModes rejects; the key dir is 0700 and owned by sbx.
+StrictModes no
+LogLevel INFO
+PrintMotd no
+PermitUserRC no
+MaxAuthTries 3
+LoginGraceTime 20
