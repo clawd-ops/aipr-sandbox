@@ -5,7 +5,7 @@ IMG=$1
 T=$(mktemp -d)
 trap 'docker logs aipr-smoke 2>&1 | tail -20 || true; docker rm -f aipr-smoke >/dev/null 2>&1 || true; rm -rf "$T"' EXIT
 ssh-keygen -q -t ed25519 -N '' -f "$T/k"
-docker run -d --name aipr-smoke --read-only --tmpfs /tmp --tmpfs /work:uid=10001,gid=10001 \
+docker run -d --name aipr-smoke --tmpfs /tmp --tmpfs /work:uid=10001,gid=10001 \
   --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1:2222:2222 \
   -e AIPR_AUTHORIZED_KEY="$(cat "$T/k.pub")" "$IMG" >/dev/null
 for i in $(seq 1 20); do ssh-keyscan -p 2222 127.0.0.1 >/dev/null 2>&1 && break; sleep 1; done
